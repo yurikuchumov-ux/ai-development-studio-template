@@ -22,20 +22,35 @@ jobs:
           fetch-depth: 1
 
       - name: Independent implementation review
+        id: claude
         uses: anthropics/claude-code-action@6902c227aaa9536481b99d56f3014bbbad6c6da8
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
-          track_progress: true
-          use_sticky_comment: true
           prompt: |
-            Complete the independent review of PR #8 against Issue #7.
-            Read Issue #7, PR metadata, and the full diff. Focus on tracking and pinned
+            Complete an independent review of PR #8 against Issue #7.
+            Read Issue #7, PR metadata, and the full diff. Check tracking and pinned
             behavior, read-only guarantees, action pinning, stale revision handling,
-            and whether the implementation satisfies every acceptance criterion.
-            Do not edit files or merge. Finish this run with a final verdict containing
-            APPROVE or REQUEST_CHANGES, concise findings, and required changes if any.
+            and every acceptance criterion. Do not edit files, comment, or merge.
+            Return only the requested JSON object.
           claude_args: |
             --max-turns 24
             --allowedTools "Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
             --disallowedTools "Edit,Write,NotebookEditCell"
+            --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["APPROVE","REQUEST_CHANGES"]},"findings":{"type":"string"},"required_changes":{"type":"string"}},"required":["verdict","findings","required_changes"]}'
+
+      - name: Publish deterministic verdict
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.claude.outputs.structured_output }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test -n "$RESULT"
+          verdict=$(printf '%s' "$RESULT" | jq -er '.verdict')
+          findings=$(printf '%s' "$RESULT" | jq -er '.findings')
+          changes=$(printf '%s' "$RESULT" | jq -er '.required_changes')
+          body=$(printf '### Claude independent review\n\n**Verdict: %s**\n\n#### Findings\n%s\n\n#### Required changes\n%s' "$verdict" "$findings" "$changes")
+          gh api --method POST "/repos/$REPO/issues/$PR/comments" -f body="$body"
