@@ -27,21 +27,33 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch validator
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --location \
-            https://raw.githubusercontent.com/yurikuchumov-ux/ai-development-studio-template/main/.github/scripts/validate-ai-os-reference.mjs \
-            --output "$RUNNER_TEMP/validate-ai-os-reference.mjs"
-
       - name: Validate reference contract
+        shell: bash
         env:
           REFERENCE_PATH: ${{ inputs.reference_path }}
           PROJECT_RULES_PATH: ${{ inputs.project_rules_path }}
-        run: node "$RUNNER_TEMP/validate-ai-os-reference.mjs" "$REFERENCE_PATH" "$PROJECT_RULES_PATH"
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
 
-      - name: Validate canonical source and pinned revision
+          const referencePath = process.env.REFERENCE_PATH;
+          const projectRulesPath = process.env.PROJECT_RULES_PATH;
+          if (!fs.existsSync(referencePath)) throw new Error(`${referencePath} is required.`);
+          const text = fs.readFileSync(referencePath, 'utf8');
+          for (const value of ['yurikuchumov-ux/ai-operating-system', 'AI_OS.md', projectRulesPath, 'Mode:']) {
+            if (!text.includes(value)) throw new Error(`Missing required reference value: ${value}`);
+          }
+          const mode = text.match(/- Mode: `([^`]+)`/)?.[1];
+          const pinned = text.match(/- Pinned commit: `([^`]+)`/)?.[1];
+          if (!['tracking', 'pinned'].includes(mode)) throw new Error(`Invalid inheritance mode: ${mode ?? 'missing'}`);
+          if (mode === 'tracking' && pinned !== 'none') throw new Error('Tracking mode requires pinned commit to be `none`.');
+          if (mode === 'pinned' && !/^[0-9a-f]{40}$/.test(pinned ?? '')) throw new Error('Pinned mode requires a 40-character lowercase commit SHA.');
+          if (!fs.existsSync(projectRulesPath)) throw new Error(`${projectRulesPath} is required.`);
+          if (fs.existsSync('AI_OS.md')) throw new Error('Downstream repositories must not store a local AI_OS.md.');
+          NODE
+
+      - name: Resolve and validate canonical revision
         shell: bash
         env:
           REFERENCE_PATH: ${{ inputs.reference_path }}
@@ -49,12 +61,23 @@ jobs:
           set -euo pipefail
           mode=$(sed -n 's/^- Mode: `\([^`]*\)`.*/\1/p' "$REFERENCE_PATH" | head -n1)
           pinned=$(sed -n 's/^- Pinned commit: `\([^`]*\)`.*/\1/p' "$REFERENCE_PATH" | head -n1)
-          base='https://raw.githubusercontent.com/yurikuchumov-ux/ai-operating-system'
-          curl --fail --silent --show-error --location "$base/main/AI_OS.md" >/dev/null
+          latest=$(git ls-remote https://github.com/yurikuchumov-ux/ai-operating-system.git refs/heads/main | cut -f1)
+          test -n "$latest"
+
           if [ "$mode" = pinned ]; then
-            curl --fail --silent --show-error --location "$base/$pinned/AI_OS.md" >/dev/null
-            latest=$(git ls-remote https://github.com/yurikuchumov-ux/ai-operating-system.git refs/heads/main | cut -f1)
-            if [ "$pinned" != "$latest" ]; then
-              echo "::warning::Pinned AI OS revision is not current main ($latest)."
-            fi
+            resolved="$pinned"
+          else
+            resolved="$latest"
+          fi
+
+          base='https://raw.githubusercontent.com/yurikuchumov-ux/ai-operating-system'
+          curl --fail --silent --show-error --location "$base/$resolved/AI_OS.md" >/dev/null
+          echo "Verified canonical AI OS revision: $resolved"
+          echo "AI_OS_RESOLVED_SHA=$resolved" >> "$GITHUB_ENV"
+          echo "### AI OS inheritance" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Mode: $mode" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Verified revision: \`$resolved\`" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$mode" = pinned ] && [ "$pinned" != "$latest" ]; then
+            echo "::notice::Pinned AI OS revision differs from current main. This is informational unless project policy requires an update."
           fi
