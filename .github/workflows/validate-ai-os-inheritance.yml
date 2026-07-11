@@ -1,18 +1,18 @@
 name: Validate AI OS inheritance
 
 on:
-  pull_request:
-    paths:
-      - 'AI_OS_REFERENCE.md'
-      - 'PROJECT_RULES.md'
-      - '.github/scripts/validate-ai-os-reference.mjs'
-      - '.github/workflows/validate-ai-os-inheritance.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'AI_OS_REFERENCE.md'
-      - 'PROJECT_RULES.md'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      reference_path:
+        description: Path to AI_OS_REFERENCE.md in the caller repository
+        required: false
+        type: string
+        default: AI_OS_REFERENCE.md
+      project_rules_path:
+        description: Path to project-specific rules in the caller repository
+        required: false
+        type: string
+        default: PROJECT_RULES.md
 
 permissions:
   contents: read
@@ -22,20 +22,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check out repository
+      - name: Check out caller repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
 
-      - name: Validate reference contract
-        run: node .github/scripts/validate-ai-os-reference.mjs AI_OS_REFERENCE.md
-
-      - name: Validate canonical source and pinned revision
+      - name: Fetch validator
         shell: bash
         run: |
           set -euo pipefail
-          mode=$(sed -n 's/^- Mode: `\([^`]*\)`.*/\1/p' AI_OS_REFERENCE.md | head -n1)
-          pinned=$(sed -n 's/^- Pinned commit: `\([^`]*\)`.*/\1/p' AI_OS_REFERENCE.md | head -n1)
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/yurikuchumov-ux/ai-development-studio-template/main/.github/scripts/validate-ai-os-reference.mjs \
+            --output "$RUNNER_TEMP/validate-ai-os-reference.mjs"
+
+      - name: Validate reference contract
+        env:
+          REFERENCE_PATH: ${{ inputs.reference_path }}
+          PROJECT_RULES_PATH: ${{ inputs.project_rules_path }}
+        run: node "$RUNNER_TEMP/validate-ai-os-reference.mjs" "$REFERENCE_PATH" "$PROJECT_RULES_PATH"
+
+      - name: Validate canonical source and pinned revision
+        shell: bash
+        env:
+          REFERENCE_PATH: ${{ inputs.reference_path }}
+        run: |
+          set -euo pipefail
+          mode=$(sed -n 's/^- Mode: `\([^`]*\)`.*/\1/p' "$REFERENCE_PATH" | head -n1)
+          pinned=$(sed -n 's/^- Pinned commit: `\([^`]*\)`.*/\1/p' "$REFERENCE_PATH" | head -n1)
           base='https://raw.githubusercontent.com/yurikuchumov-ux/ai-operating-system'
           curl --fail --silent --show-error --location "$base/main/AI_OS.md" >/dev/null
           if [ "$mode" = pinned ]; then
