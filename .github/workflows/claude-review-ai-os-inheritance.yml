@@ -21,6 +21,7 @@ jobs:
           fetch-depth: 1
 
       - name: Independent implementation review
+        id: claude
         uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -28,10 +29,26 @@ jobs:
             Independently review PR #8 against Issue #7 and ai-operating-system PR #11.
             Read only PR metadata and diff. Check the reference template, validator, reusable workflow,
             tracking/pinned behavior, stale revision warning, read-only guarantees, action pinning,
-            and adoption documentation. Do not edit files or merge.
-            Post exactly one concise PR comment using gh pr comment with:
-            verdict: APPROVE or REQUEST_CHANGES; findings; required changes if any.
+            and adoption documentation. Do not edit files, comment, review, or merge.
+            Return only the requested JSON.
           claude_args: |
             --max-turns 3
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
+            --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*)"
             --disallowedTools "Edit,Write,NotebookEditCell"
+            --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["APPROVE","REQUEST_CHANGES"]},"summary":{"type":"string"}},"required":["verdict","summary"]}'
+
+      - name: Publish review result
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          test -f "$EXECUTION_FILE"
+          output=$(jq -cer '.[] | select(.type == "result") | .structured_output' "$EXECUTION_FILE" | tail -n 1)
+          verdict=$(printf '%s' "$output" | jq -er '.verdict')
+          summary=$(printf '%s' "$output" | jq -er '.summary')
+          body=$(printf '**Claude independent review — %s**\n\n%s' "$verdict" "$summary")
+          gh api --method POST "/repos/$REPO/issues/$PR/comments" -f body="$body"
