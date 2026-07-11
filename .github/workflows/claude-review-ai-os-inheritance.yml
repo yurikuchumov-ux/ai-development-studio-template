@@ -25,14 +25,15 @@ jobs:
         uses: anthropics/claude-code-action@6902c227aaa9536481b99d56f3014bbbad6c6da8
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
           prompt: |
             Independently review PR #8 against Issue #7 and ai-operating-system PR #11.
             Read only the PR metadata and diff. Check the reference template, validator,
             reusable workflow, tracking/pinned behavior, stale revision warning,
             read-only guarantees, action pinning, and adoption documentation.
             Do not edit files or merge. Post exactly one concise top-level PR comment
-            using gh pr comment. The comment must contain: verdict: APPROVE or
-            REQUEST_CHANGES; findings; and required changes if any.
+            using gh pr comment. The comment must contain verdict APPROVE or REQUEST_CHANGES,
+            findings, and required changes if any.
           claude_args: |
             --max-turns 4
             --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*)"
