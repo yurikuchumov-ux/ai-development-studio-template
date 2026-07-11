@@ -1,0 +1,39 @@
+name: Codex POC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codex-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Run Codex read-only POC
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":read-only"
+          prompt: |
+            Inspect this repository without modifying any files.
+
+            Return exactly:
+            1. the repository name;
+            2. the top-level files and directories;
+            3. whether AGENTS.md exists.
+
+            Do not make changes, commits, branches, pull requests, or network calls.
+
+      - name: Print Codex result
+        env:
+          CODEX_RESULT: ${{ steps.codex.outputs.final-message }}
+        run: printf '%s\n' "$CODEX_RESULT"
