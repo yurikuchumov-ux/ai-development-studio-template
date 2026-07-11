@@ -1,0 +1,50 @@
+name: Claude Independent Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Load review prompt
+        id: review_prompt
+        shell: bash
+        run: |
+          {
+            echo 'text<<CLAUDE_REVIEW_PROMPT'
+            cat .github/prompts/claude-review.md
+            echo 'CLAUDE_REVIEW_PROMPT'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run independent Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPOSITORY: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR TITLE: ${{ github.event.pull_request.title }}
+            PR BODY:
+            ${{ github.event.pull_request.body }}
+
+            ${{ steps.review_prompt.outputs.text }}
+          claude_args: |
+            --max-turns 8
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --disallowedTools "Edit,Write,NotebookEditCell"
