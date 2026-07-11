@@ -1,6 +1,9 @@
 name: Codex POC
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/codex-poc.yml
   workflow_dispatch:
 
 permissions:
