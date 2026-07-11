@@ -1,0 +1,24 @@
+name: AI OS inheritance
+
+on:
+  pull_request:
+    paths:
+      - 'AI_OS_REFERENCE.md'
+      - 'PROJECT_RULES.md'
+      - '.github/workflows/ai-os-inheritance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AI_OS_REFERENCE.md'
+      - 'PROJECT_RULES.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: yurikuchumov-ux/ai-development-studio-template/.github/workflows/validate-ai-os-inheritance.yml@main
+    with:
+      reference_path: AI_OS_REFERENCE.md
+      project_rules_path: PROJECT_RULES.md
