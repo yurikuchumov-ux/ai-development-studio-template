@@ -14,7 +14,7 @@ jobs:
   review:
     if: github.event.pull_request.number == 8
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -29,13 +29,13 @@ jobs:
           track_progress: true
           use_sticky_comment: true
           prompt: |
-            Independently review PR #8 against Issue #7 and ai-operating-system PR #11.
-            Read Issue #7, the PR metadata, and the diff. Check the reference template,
-            validator, reusable workflow, tracking/pinned behavior, stale revision warning,
-            read-only guarantees, action pinning, and adoption documentation.
-            Do not edit files or merge. Finish with a concise verdict containing
-            APPROVE or REQUEST_CHANGES, findings, and required changes if any.
+            Complete the independent review of PR #8 against Issue #7.
+            Read Issue #7, PR metadata, and the full diff. Focus on tracking and pinned
+            behavior, read-only guarantees, action pinning, stale revision handling,
+            and whether the implementation satisfies every acceptance criterion.
+            Do not edit files or merge. Finish this run with a final verdict containing
+            APPROVE or REQUEST_CHANGES, concise findings, and required changes if any.
           claude_args: |
-            --max-turns 12
+            --max-turns 24
             --allowedTools "Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
             --disallowedTools "Edit,Write,NotebookEditCell"
