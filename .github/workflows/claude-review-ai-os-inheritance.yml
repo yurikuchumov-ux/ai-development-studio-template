@@ -30,12 +30,12 @@ jobs:
           use_sticky_comment: true
           prompt: |
             Independently review PR #8 against Issue #7 and ai-operating-system PR #11.
-            Read only the PR metadata and diff. Check the reference template, validator,
-            reusable workflow, tracking/pinned behavior, stale revision warning,
+            Read Issue #7, the PR metadata, and the diff. Check the reference template,
+            validator, reusable workflow, tracking/pinned behavior, stale revision warning,
             read-only guarantees, action pinning, and adoption documentation.
             Do not edit files or merge. Finish with a concise verdict containing
             APPROVE or REQUEST_CHANGES, findings, and required changes if any.
           claude_args: |
-            --max-turns 4
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*)"
+            --max-turns 12
+            --allowedTools "Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
             --disallowedTools "Edit,Write,NotebookEditCell"
