@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 
-const path = process.argv[2] ?? 'AI_OS_REFERENCE.md';
-const text = fs.readFileSync(path, 'utf8');
+const referencePath = process.argv[2] ?? 'AI_OS_REFERENCE.md';
+const projectRulesPath = process.argv[3] ?? 'PROJECT_RULES.md';
+const text = fs.readFileSync(referencePath, 'utf8');
 
 const required = [
   'yurikuchumov-ux/ai-operating-system',
   'AI_OS.md',
-  'PROJECT_RULES.md',
+  projectRulesPath,
   'Mode:'
 ];
 
@@ -31,8 +32,8 @@ if (mode === 'pinned' && !/^[0-9a-f]{40}$/.test(pinned ?? '')) {
   throw new Error('Pinned mode requires a 40-character lowercase commit SHA.');
 }
 
-if (!fs.existsSync('PROJECT_RULES.md')) {
-  throw new Error('PROJECT_RULES.md is required for project-specific rules.');
+if (!fs.existsSync(projectRulesPath)) {
+  throw new Error(`${projectRulesPath} is required for project-specific rules.`);
 }
 
 console.log(`AI OS reference is valid (${mode}${mode === 'pinned' ? ` at ${pinned}` : ''}).`);
