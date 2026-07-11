@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'AI_OS_REFERENCE.md'
+      - 'AI_OS.md'
       - 'PROJECT_RULES.md'
       - '.github/workflows/ai-os-inheritance.yml'
   push:
     branches: [main]
     paths:
       - 'AI_OS_REFERENCE.md'
+      - 'AI_OS.md'
       - 'PROJECT_RULES.md'
   workflow_dispatch:
 
@@ -18,7 +20,9 @@ permissions:
 
 jobs:
   validate:
-    uses: yurikuchumov-ux/ai-development-studio-template/.github/workflows/validate-ai-os-inheritance.yml@main
+    # Replace the placeholder with a reviewed full 40-character commit SHA.
+    # Branch and tag references are intentionally forbidden for reproducibility.
+    uses: yurikuchumov-ux/ai-development-studio-template/.github/workflows/validate-ai-os-inheritance.yml@REPLACE_WITH_IMMUTABLE_COMMIT_SHA
     with:
       reference_path: AI_OS_REFERENCE.md
       project_rules_path: PROJECT_RULES.md
