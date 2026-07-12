@@ -39,7 +39,7 @@ jobs:
             --disallowedTools "Edit,Write,NotebookEditCell"
             --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["APPROVE","REQUEST_CHANGES"]},"findings":{"type":"string"},"required_changes":{"type":"string"}},"required":["verdict","findings","required_changes"]}'
 
-      - name: Publish deterministic verdict
+      - name: Publish and enforce verdict
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -52,5 +52,24 @@ jobs:
           verdict=$(printf '%s' "$RESULT" | jq -er '.verdict')
           findings=$(printf '%s' "$RESULT" | jq -er '.findings')
           changes=$(printf '%s' "$RESULT" | jq -er '.required_changes')
+
           body=$(printf '### Claude independent review\n\n**Verdict: %s**\n\n#### Findings\n%s\n\n#### Required changes\n%s' "$verdict" "$findings" "$changes")
           gh api --method POST "/repos/$REPO/issues/$PR/comments" -f body="$body"
+
+          {
+            echo '### Claude independent review'
+            echo
+            echo "**Verdict: $verdict**"
+            echo
+            echo '#### Findings'
+            echo "$findings"
+            echo
+            echo '#### Required changes'
+            echo "$changes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Claude verdict: $verdict"
+          if [ "$verdict" = "REQUEST_CHANGES" ]; then
+            echo "::error::Claude requested changes. See the PR comment and job summary."
+            exit 1
+          fi
